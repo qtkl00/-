@@ -1,0 +1,1971 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>City Walk - 城市漫步</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.544.0/dist/umd/lucide.min.js"></script>
+    <!-- GSAP for animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <!-- Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#F7D449', // 柠檬黄
+                        secondary: '#FFB347', // 橙色
+                        accent: '#FFD700', // 金色
+                        dark: '#333333', // 深灰色
+                        light: '#FFFFFF', // 白色
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        display: ['Poppins', 'system-ui', 'sans-serif'],
+                    },
+                    animation: {
+                        'breathe': 'breathe 8s ease-in-out infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'slide-in': 'slideIn 1s ease-out forwards',
+                        'fade-in': 'fadeIn 1s ease-out forwards',
+                    },
+                    keyframes: {
+                        breathe: {
+                            '0%, 100%': { transform: 'scale(1)' },
+                            '50%': { transform: 'scale(1.03)' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        slideIn: {
+                            '0%': { transform: 'translateY(30px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap');
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        
+        .hero-section {
+            position: relative;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        
+        .nav-link {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background-color: #F7D449;
+            transition: width 0.3s ease;
+        }
+        
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        
+        .topic-card {
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-style: preserve-3d;
+            perspective: 1000px;
+            position: relative;
+            overflow: hidden;
+            border-radius: 1rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+        }
+        
+        .topic-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(247, 212, 73, 0.2), rgba(255, 179, 71, 0.2));
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 1;
+            border-radius: 1rem;
+        }
+        
+        .topic-card:hover {
+            transform: translateY(-15px) rotateX(5deg) rotateY(5deg);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 10px 20px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .topic-card:hover::after {
+            opacity: 1;
+        }
+        
+        .topic-card:hover img {
+            transform: scale(1.15);
+        }
+        
+        .topic-card .card-content {
+            position: relative;
+            z-index: 2;
+            transition: all 0.5s ease;
+        }
+        
+        .topic-card:hover .card-content {
+            transform: translateZ(20px);
+        }
+        
+        .topic-card .card-overlay {
+            position: absolute;
+            bottom: -100%;
+            left: 0;
+            width: 100%;
+            padding: 1.5rem;
+            background: linear-gradient(to top, rgba(247, 212, 73, 0.9), transparent);
+            transition: all 0.5s ease;
+            z-index: 2;
+            display: flex;
+            align-items: flex-end;
+        }
+        
+        .topic-card:hover .card-overlay {
+            bottom: 0;
+        }
+        
+        .topic-card .card-overlay p {
+            color: white;
+            margin: 0;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: all 0.5s ease 0.2s;
+        }
+        
+        .topic-card:hover .card-overlay p {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .photo-slider {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        
+        .photo-slider::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .photo-card {
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            flex: 0 0 auto;
+            width: 300px;
+            margin-right: 1.5rem;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+        
+        .photo-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+            opacity: 0;
+            transition: all 0.5s ease;
+            z-index: 1;
+        }
+        
+        .photo-card:hover {
+            transform: scale(1.1) translateY(-10px);
+            z-index: 20;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        
+        .photo-card:hover::before {
+            opacity: 1;
+        }
+        
+        .photo-card:hover img {
+            transform: scale(1.1);
+        }
+        
+        .photo-card .photo-info {
+            position: absolute;
+            bottom: -50px;
+            left: 0;
+            width: 100%;
+            padding: 1.5rem;
+            color: white;
+            z-index: 2;
+            transition: all 0.5s ease 0.2s;
+        }
+        
+        .photo-card:hover .photo-info {
+            bottom: 0;
+        }
+        
+        .music-card {
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            border-radius: 1rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+        }
+        
+        .music-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(247, 212, 73, 0.1), rgba(255, 215, 0, 0.1));
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 1;
+        }
+        
+        .music-card:hover {
+            transform: translateY(-10px) rotateX(5deg);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .music-card:hover::after {
+            opacity: 1;
+        }
+        
+        .music-card:hover img {
+            transform: scale(1.1);
+        }
+        
+        .music-card .music-content {
+            position: relative;
+            z-index: 2;
+        }
+        
+        .vote-option {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .vote-option:hover {
+            transform: translateX(5px);
+        }
+        
+        .fluid-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 1;
+            background-image: url('https://p11-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/49232b0be01646b3a70b8a255033de38.jpg~tplv-a9rns2rl98-24:720:720.image?rcl=20251222213627C48819DD6EC597D7689D&rk3s=8e244e95&rrcfp=8a172a1a&x-expires=1767015387&x-signature=PWOgssYn%2B94AXyW7lAYjxTFtugA%3D');
+            background-size: 120% 120%;
+            background-position: center;
+            animation: breathe 10s ease-in-out infinite;
+        }
+        
+        /* Global section background with particles */
+        body {
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            opacity: 0.05;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="%23F7D449"/></svg>');
+            background-repeat: repeat;
+            background-size: 50px 50px;
+            animation: float 20s ease-in-out infinite;
+        }
+        
+        section {
+            position: relative;
+            overflow: hidden;
+            animation: breathe 8s ease-in-out infinite;
+        }
+        
+        @keyframes breathe {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 0.9;
+            }
+            50% {
+                transform: scale(1.03);
+                opacity: 1;
+            }
+        }
+        
+        .fluid-background:hover {
+            animation: disperse 1s ease-out forwards;
+        }
+        
+        @keyframes disperse {
+            0% {
+                transform: scale(1);
+                opacity: 0.9;
+            }
+            100% {
+                transform: scale(1.2);
+                opacity: 0.6;
+            }
+        }
+        
+        .footprint-animation {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background-image: url('https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/40acec068dd74264adecf781dec7aaa1~tplv-a9rns2rl98-image.image?rcl=20251222210137F1CA449D75FE6EA11840&rk3s=8e244e95&rrcfp=f06b921b&x-expires=1769000554&x-signature=voFZ4s1RnSvh%2F8L44%2FpXWcVaCFI%3D');
+            background-size: contain;
+            background-repeat: no-repeat;
+            opacity: 0;
+            transform: translateY(50px);
+            animation: footprintAppear 2s ease-out forwards;
+        }
+        
+        @keyframes footprintAppear {
+            0% {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            50% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+        }
+        
+        .section-title {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 2rem;
+        }
+        
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 60px;
+            height: 3px;
+            background-color: #F7D449;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .text-gradient {
+            color: #F7D449;
+        }
+        
+        /* Mobile menu */
+        .mobile-menu {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .mobile-menu.active {
+            transform: translateX(0);
+        }
+        
+        /* Blob animation */
+        @keyframes blob {
+            0% {
+                transform: translate(0px, 0px) scale(1);
+            }
+            33% {
+                transform: translate(30px, -50px) scale(1.1);
+            }
+            66% {
+                transform: translate(-20px, 20px) scale(0.9);
+            }
+            100% {
+                transform: translate(0px, 0px) scale(1);
+            }
+        }
+        
+        .animate-blob {
+            animation: blob 7s infinite;
+        }
+        
+        .animation-delay-2000 {
+            animation-delay: 2s;
+        }
+        
+        .animation-delay-4000 {
+            animation-delay: 4s;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .hero-content h1 {
+                font-size: 2.5rem;
+            }
+            
+            .topic-card {
+                margin-bottom: 1.5rem;
+            }
+            
+            .photo-card {
+                width: 250px;
+            }
+        }
+        
+        /* Preloader */
+        .preloader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+        
+        .preloader.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+        
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #F7D449;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Make headings yellow and paragraphs black */
+        h1, h2, h3, h4, h5, h6 {
+            color: #F7D449 !important;
+        }
+        
+        p, span, a, li {
+            color: #333333 !important;
+        }
+        
+        /* Adjust hero buttons */
+        .hero-content .flex.flex-col.md\\:flex-row.justify-center.gap-4.mt-10 {
+            transform: scale(0.8);
+        }
+        
+        /* Three.js canvas container */
+        #particles-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+        
+        /* Splash Screen */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #fff 0%, #f8f0d0 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            overflow: hidden;
+        }
+        
+        #splash-particles-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .splash-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+        
+        .splash-logo {
+            width: 150px;
+            height: 150px;
+            margin-bottom: 2rem;
+            filter: drop-shadow(0 0 20px rgba(247, 212, 73, 0.8));
+        }
+        
+        .splash-title {
+            font-size: 4rem;
+            font-weight: 800;
+            color: #F7D449;
+            margin-bottom: 1rem;
+            opacity: 0;
+            transform: translateY(20px);
+            text-shadow: 0 0 30px rgba(247, 212, 73, 0.5), 0 0 60px rgba(247, 212, 73, 0.3);
+            letter-spacing: 2px;
+        }
+        
+        .splash-subtitle {
+            font-size: 1.2rem;
+            color: #333;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+        
+        /* Main content initially hidden */
+        .main-content {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 1s ease, visibility 1s ease;
+        }
+        
+        .main-content.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <canvas id="splash-particles-canvas"></canvas>
+        <div class="splash-content">
+            <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/acc519db6f584e14be10101282d26574~tplv-a9rns2rl98-image.image?rcl=20251222210137F1CA449D75FE6EA11840&amp;rk3s=8e244e95&amp;rrcfp=f06b921b&amp;x-expires=1769000554&amp;x-signature=XrfNkbOHv6z5D7Gq26auPWmFGKs%3D" alt="City Walk Logo" class="splash-logo">
+            <h1 class="splash-title font-display">City Walk</h1>
+            <p class="splash-subtitle">探索城市的每一个角落</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Three.js Particles Canvas -->
+        <canvas id="particles-canvas"></canvas>
+
+        <!-- Preloader -->
+        <div class="preloader">
+            <div class="loader"></div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="fixed top-0 left-0 w-full bg-white bg-opacity-90 backdrop-blur-md z-50 shadow-sm">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <a href="#" class="flex items-center space-x-2">
+                    <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/acc519db6f584e14be10101282d26574~tplv-a9rns2rl98-image.image?rcl=20251222210137F1CA449D75FE6EA11840&amp;rk3s=8e244e95&amp;rrcfp=f06b921b&amp;x-expires=1769000554&amp;x-signature=XrfNkbOHv6z5D7Gq26auPWmFGKs%3D" alt="City Walk Logo" class="h-10">
+                    <span class="text-2xl font-bold font-display text-primary">City Walk</span>
+                </a>
+                
+                <!-- Desktop Navigation -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#about" class="nav-link text-primary hover:text-secondary font-medium">关于 City Walk</a>
+                    <a href="#topics" class="nav-link text-primary hover:text-secondary font-medium">话题搭建</a>
+                    <a href="#interaction" class="nav-link text-primary hover:text-secondary font-medium">互动专区</a>
+                    <a href="#music" class="nav-link text-primary hover:text-secondary font-medium">音乐漫步</a>
+                    <a href="#gallery" class="nav-link text-primary hover:text-secondary font-medium">照片分享</a>
+                    <!-- 修改后的联系我们按钮 -->
+                    <a href="#contact" class="bg-primary hover:bg-secondary text-dark font-bold py-2 px-6 rounded-full transition duration-300 transform hover:scale-105 hover:shadow-lg">
+                        联系我们
+                    </a>
+                </div>
+                
+                <!-- Mobile menu button -->
+                <button id="mobile-menu-button" class="md:hidden text-primary focus:outline-none">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+            </div>
+            
+            <!-- Mobile Navigation -->
+            <div id="mobile-menu" class="mobile-menu fixed top-0 left-0 h-full w-4/5 bg-white shadow-lg z-50 md:hidden">
+                <div class="p-4 border-b">
+                    <div class="flex justify-between items-center">
+                        <a href="#" class="flex items-center space-x-2">
+                            <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/acc519db6f584e14be10101282d26574~tplv-a9rns2rl98-image.image?rcl=20251222210137F1CA449D75FE6EA11840&amp;rk3s=8e244e95&amp;rrcfp=f06b921b&amp;x-expires=1769000554&amp;x-signature=XrfNkbOHv6z5D7Gq26auPWmFGKs%3D" alt="City Walk Logo" class="h-8">
+                            <span class="text-xl font-bold font-display text-primary">City Walk</span>
+                        </a>
+                        <button id="close-menu-button" class="text-primary focus:outline-none">
+                            <i data-lucide="x" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-4">
+                    <ul class="space-y-4">
+                        <li><a href="#about" class="block py-2 text-primary hover:text-secondary">关于 City Walk</a></li>
+                        <li><a href="#topics" class="block py-2 text-primary hover:text-secondary">话题搭建</a></li>
+                        <li><a href="#interaction" class="block py-2 text-primary hover:text-secondary">互动专区</a></li>
+                        <li><a href="#music" class="block py-2 text-primary hover:text-secondary">音乐漫步</a></li>
+                        <li><a href="#gallery" class="block py-2 text-primary hover:text-secondary">照片分享</a></li>
+                        <li><a href="#contact" class="block py-2 text-primary hover:text-secondary">联系我们</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Hero Section with Three.js Animation -->
+        <section class="hero-section flex items-center justify-center">
+            <div class="fluid-background"></div>
+            <div class="container mx-auto px-4 z-10">
+                <div class="hero-content text-center" style="opacity: 0; transform: translateY(30px);">
+                    <div class="flex flex-col md:flex-row justify-center gap-4 mt-10">
+                        <a href="#about" class="bg-primary hover:bg-secondary text-dark font-bold py-2 px-6 rounded-full transition duration-300 transform hover:scale-105 hover:shadow-lg text-sm md:text-base">
+                            开始探索
+                        </a>
+                        <a href="#topics" class="bg-white bg-opacity-20 backdrop-blur-sm hover:bg-opacity-30 text-primary font-medium py-2 px-6 rounded-full transition duration-300 transform hover:scale-105 hover:shadow-lg border border-primary border-opacity-40 text-sm md:text-base">
+                            热门话题
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- About City Walk Section -->
+        <section id="about" class="py-20 bg-white">
+            <div class="container mx-auto px-4">
+                <div class="section-title-container text-center mb-16" style="opacity: 0; transform: translateY(20px);">
+                    <h2 class="section-title text-3xl md:text-4xl font-bold font-display text-primary">关于 City Walk</h2>
+                    <p class="text-primary mt-4 max-w-2xl mx-auto">了解什么是 City Walk，以及它与普通散步的区别</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                    <div class="about-image" style="opacity: 0; transform: translateX(-30px);">
+                        <img src="https://p9-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/code_assistant/1da64dae2f934f559f2819eb0a4b4c8b~tplv-a9rns2rl98-image.image?rcl=20251222224011CBF057E6CA5AB5CD9AB0&amp;rk3s=8e244e95&amp;rrcfp=e75484ac&amp;x-expires=1767019212&amp;x-signature=VuJBBQwFLck2gYtTCSM1XusNnuM%3D" alt="City Walk" class="rounded-lg shadow-xl w-full h-auto">
+                    </div>
+                    
+                    <div class="about-content" style="opacity: 0; transform: translateX(30px);">
+                        <h3 class="text-2xl font-bold mb-4 font-display text-primary">什么是 City Walk？</h3>
+                        <p class="text-primary mb-6 leading-relaxed">
+                            City Walk（城市漫步）是一种慢节奏的城市探索方式，它鼓励人们以步行的方式深入了解自己所在的城市或旅行目的地。不同于传统的旅游观光，City Walk 更注重体验城市的日常生活、文化氛围和隐藏的细节。
+                        </p>
+                        
+                        <h3 class="text-2xl font-bold mb-4 font-display text-primary">City Walk 与散步的区别</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-start">
+                                <div class="bg-primary bg-opacity-10 p-2 rounded-full mr-4">
+                                    <i data-lucide="map" class="w-5 h-5 text-primary"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-primary">目的性更强</h4>
+                                    <p class="text-primary">City Walk 通常有特定的主题或路线，如历史建筑、特色小店、美食探索等。</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-primary bg-opacity-10 p-2 rounded-full mr-4">
+                                    <i data-lucide="camera" class="w-5 h-5 text-primary"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-primary">观察与记录</h4>
+                                    <p class="text-primary">参与者更注重观察城市细节，并用照片、笔记等方式记录所见所闻。</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-primary bg-opacity-10 p-2 rounded-full mr-4">
+                                    <i data-lucide="users" class="w-5 h-5 text-primary"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-primary">社交与分享</h4>
+                                    <p class="text-primary">City Walk 通常涉及在社交媒体上分享体验，并与志同道合的人建立联系。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Common Questions -->
+                <div class="mt-20" style="opacity: 0; transform: translateY(30px);">
+                    <h3 class="text-2xl font-bold mb-8 text-center font-display text-primary">常见问题</h3>
+                    <div class="space-y-4">
+                        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                            <button class="faq-question w-full text-left p-6 focus:outline-none flex justify-between items-center">
+                                <span class="text-xl font-semibold text-primary">City Walk 需要准备什么？</span>
+                                <i data-lucide="chevron-down" class="w-6 h-6 text-primary transition-transform duration-300"></i>
+                            </button>
+                            <div class="faq-answer hidden px-6 pb-6">
+                                <p class="text-primary">舒适的鞋子是最重要的！此外，你可以带上一瓶水、一个小背包、防晒霜、帽子和相机来记录美好瞬间。</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                            <button class="faq-question w-full text-left p-6 focus:outline-none flex justify-between items-center">
+                                <span class="text-xl font-semibold text-primary">如何规划一条 City Walk 路线？</span>
+                                <i data-lucide="chevron-down" class="w-6 h-6 text-primary transition-transform duration-300"></i>
+                            </button>
+                            <div class="faq-answer hidden px-6 pb-6">
+                                <p class="text-primary">可以从一个感兴趣的地点开始，然后向四周辐射。结合历史建筑、特色小店、公园绿地等元素，规划一条有张有弛的路线。</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                            <button class="faq-question w-full text-left p-6 focus:outline-none flex justify-between items-center">
+                                <span class="text-xl font-semibold text-primary">City Walk 一般需要多长时间？</span>
+                                <i data-lucide="chevron-down" class="w-6 h-6 text-primary transition-transform duration-300"></i>
+                            </button>
+                            <div class="faq-answer hidden px-6 pb-6">
+                                <p class="text-primary">根据路线的长短和个人的节奏，一般在1-3小时之间。重要的是享受过程，而不是赶时间。</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                            <button class="faq-question w-full text-left p-6 focus:outline-none flex justify-between items-center">
+                                <span class="text-xl font-semibold text-primary">一个人进行 City Walk 安全吗？</span>
+                                <i data-lucide="chevron-down" class="w-6 h-6 text-primary transition-transform duration-300"></i>
+                            </button>
+                            <div class="faq-answer hidden px-6 pb-6">
+                                <p class="text-primary">在大多数城市的繁华地区，白天进行 City Walk 是相对安全的。建议选择光线充足、人流量大的路线，并告知朋友你的行程。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topics Section -->
+        <section id="topics" class="py-20 bg-gradient-to-b from-white to-yellow-50">
+            <div class="container mx-auto px-4">
+                <div class="section-title-container text-center mb-16" style="opacity: 0; transform: translateY(20px);">
+                    <h2 class="section-title text-3xl md:text-4xl font-bold font-display text-primary">话题搭建</h2>
+                    <p class="text-primary mt-4 max-w-2xl mx-auto">参与热门话题讨论，分享你的 City Walk 故事</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Topic 1 -->
+                    <div class="topic-card bg-white relative group" style="opacity: 0; transform: translateY(30px); transition-delay: 0.1s;">
+                        <div class="h-48 overflow-hidden">
+                            <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/code_assistant/74d3f2e287c8466f87c06814cb99cb4e~tplv-a9rns2rl98-image.image?rcl=202512222241570CC64AAB0E0901A99438&amp;rk3s=8e244e95&amp;rrcfp=e75484ac&amp;x-expires=1767019318&amp;x-signature=G6q7ieiZ2uCmXJxJtbR6UgNxQXk%3D" alt="Why City Walk is Popular" class="w-full h-full object-cover transition duration-700">
+                        </div>
+                        <div class="p-6 card-content">
+                            <h3 class="text-xl font-bold mb-3 font-display text-primary">City Walk 为什么火？</h3>
+                            <p class="text-primary mb-4">探讨 City Walk 成为流行趋势的原因，以及它如何改变人们探索城市的方式。</p>
+                            <a href="https://weibo.com/search?q=CityWalk为什么火" target="_blank" class="inline-flex items-center text-primary hover:text-secondary transition duration-300 group-hover:translate-x-1">
+                                <span>去微博讨论</span>
+                                <i data-lucide="arrow-right" class="w-4 h-4 ml-1 transition-transform"></i>
+                            </a>
+                        </div>
+                        <div class="card-overlay">
+                            <p>加入讨论，分享你对City Walk流行现象的看法！</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Topic 2 -->
+                    <div class="topic-card bg-white relative group" style="opacity: 0; transform: translateY(30px); transition-delay: 0.2s;">
+                        <div class="h-48 overflow-hidden">
+                            <img src="https://p9-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/code_assistant/01d501c9d5da485aac9f50a34de0f535~tplv-a9rns2rl98-image.image?rcl=20251222224210BB25801BBF10D0972211&amp;rk3s=8e244e95&amp;rrcfp=e75484ac&amp;x-expires=1767019331&amp;x-signature=BZwtFxH7JT7%2FoJv9WM%2FrCsgBrfM%3D" alt="Share Your City Walk Story" class="w-full h-full object-cover transition duration-700">
+                        </div>
+                        <div class="p-6 card-content">
+                            <h3 class="text-xl font-bold mb-3 font-display text-primary">分享你的 City Walk 故事</h3>
+                            <p class="text-primary mb-4">分享你在城市漫步中遇到的有趣故事、美丽风景或难忘经历。</p>
+                            <a href="https://weibo.com/search?q=分享你的CityWalk故事" target="_blank" class="inline-flex items-center text-primary hover:text-secondary transition duration-300 group-hover:translate-x-1">
+                                <span>去微博讨论</span>
+                                <i data-lucide="arrow-right" class="w-4 h-4 ml-1 transition-transform"></i>
+                            </a>
+                        </div>
+                        <div class="card-overlay">
+                            <p>你的故事可能会启发更多人开始他们的City Walk之旅！</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Topic 3 -->
+                    <div class="topic-card bg-white relative group" style="opacity: 0; transform: translateY(30px); transition-delay: 0.3s;">
+                        <div class="h-48 overflow-hidden">
+                            <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/code_assistant/f4eeee47be174487a483bb65c7045c0d~tplv-a9rns2rl98-image.image?rcl=2025122222424018A228F7180765D627C3&amp;rk3s=8e244e95&amp;rrcfp=e75484ac&amp;x-expires=1767019361&amp;x-signature=PZAzeQqFmukSv%2BWb5LJ9QqOmSDQ%3D" alt="City Walk Challenge" class="w-full h-full object-cover transition duration-700">
+                        </div>
+                        <div class="p-6 card-content">
+                            <h3 class="text-xl font-bold mb-3 font-display text-primary">City Walk 打卡挑战</h3>
+                            <p class="text-primary mb-4">参与 City Walk 打卡挑战，探索城市的不同角落，赢取精美礼品。</p>
+                            <a href="https://weibo.com/search?q=CityWalk打卡挑战" target="_blank" class="inline-flex items-center text-primary hover:text-secondary transition duration-300 group-hover:translate-x-1">
+                                <span>去微博讨论</span>
+                                <i data-lucide="arrow-right" class="w-4 h-4 ml-1 transition-transform"></i>
+                            </a>
+                        </div>
+                        <div class="card-overlay">
+                            <p>挑战自我，发现城市中被忽略的美丽角落！</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- More Topics Button -->
+                <div class="text-center mt-12" style="opacity: 0; transform: translateY(20px);">
+                    <button id="more-topics-btn" class="bg-white border border-primary text-primary hover:bg-primary hover:text-white font-medium py-2 px-6 rounded-full transition duration-300 transform hover:scale-105">
+                        查看更多话题
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interaction Section -->
+        <section id="interaction" class="py-20 bg-white">
+            <div class="container mx-auto px-4">
+                <div class="section-title-container text-center mb-16" style="opacity: 0; transform: translateY(20px);">
+                    <h2 class="section-title text-3xl md:text-4xl font-bold font-display text-primary">互动专区</h2>
+                    <p class="text-primary mt-4 max-w-2xl mx-auto">参与问答、投票，分享你的想法</p>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    <!-- Q&A Section -->
+                    <div class="bg-white rounded-xl shadow-lg p-8 border border-gray-100" style="opacity: 0; transform: translateX(-30px);">
+                        <h3 class="text-2xl font-bold mb-6 text-primary">互动提问</h3>
+                        
+                        <div class="space-y-6">
+                            <div class="bg-yellow-50 p-4 rounded-lg">
+                                <div class="flex items-start">
+                                    <div class="bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">
+                                        <span class="font-medium">Q</span>
+                                    </div>
+                                    <div>
+                                        <p class="text-primary font-medium">你最喜欢在什么时间进行 City Walk？</p>
+                                        <div class="mt-3 flex items-center text-sm text-primary">
+                                            <span>来自 @城市探索者</span>
+                                            <span class="mx-2">•</span>
+                                            <span>2小时前</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-yellow-50 p-4 rounded-lg">
+                                <div class="flex items-start">
+                                    <div class="bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">
+                                        <span class="font-medium">Q</span>
+                                    </div>
+                                    <div>
+                                        <p class="text-primary font-medium">在你的城市，有哪些适合 City Walk 的小众路线？</p>
+                                        <div class="mt-3 flex items-center text-sm text-primary">
+                                            <span>来自 @小路发现者</span>
+                                            <span class="mx-2">•</span>
+                                            <span>5小时前</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-yellow-50 p-4 rounded-lg">
+                                <div class="flex items-start">
+                                    <div class="bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">
+                                        <span class="font-medium">Q</span>
+                                    </div>
+                                    <div>
+                                        <p class="text-primary font-medium">City Walk 时，你喜欢听什么类型的音乐？</p>
+                                        <div class="mt-3 flex items-center text-sm text-primary">
+                                            <span>来自 @音乐漫步者</span>
+                                            <span class="mx-2">•</span>
+                                            <span>昨天</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-8">
+                            <a href="https://www.xiaohongshu.com/search_result?keyword=CityWalk互动" target="_blank" class="block text-center bg-primary hover:bg-secondary text-white font-medium py-3 px-6 rounded-lg transition duration-300">
+                                去小红书参与讨论
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Voting Section -->
+                    <div class="bg-white rounded-xl shadow-lg p-8 border border-gray-100" style="opacity: 0; transform: translateX(30px);">
+                        <h3 class="text-2xl font-bold mb-6 text-primary">用户投票</h3>
+                        
+                        <div class="mb-8">
+                            <h4 class="text-lg font-semibold mb-4 text-primary">你进行 City Walk 的主要目的是什么？</h4>
+                            
+                            <div class="space-y-4">
+                                <div class="vote-option flex items-center p-3 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition duration-300">
+                                    <div class="w-6 h-6 rounded-full border-2 border-primary flex items-center justify-center mr-3">
+                                        <div class="w-3 h-3 rounded-full bg-primary"></div>
+                                    </div>
+                                    <div class="flex-grow">
+                                        <span class="text-primary">探索城市文化与历史</span>
+                                    </div>
+                                    <div class="text-primary font-medium">42%</div>
+                                </div>
+                                
+                                <div class="vote-option flex items-center p-3 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition duration-300">
+                                    <div class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center mr-3">
+                                        <div class="w-3 h-3 rounded-full bg-white"></div>
+                                    </div>
+                                    <div class="flex-grow">
+                                        <span class="text-primary">发现美食与特色小店</span>
+                                    </div>
+                                    <div class="text-primary font-medium">28%</div>
+                                </div>
+                                
+                                <div class="vote-option flex items-center p-3 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition duration-300">
+                                    <div class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center mr-3">
+                                        <div class="w-3 h-3 rounded-full bg-white"></div>
+                                    </div>
+                                    <div class="flex-grow">
+                                        <span class="text-primary">拍照打卡分享</span>
+                                    </div>
+                                    <div class="text-primary font-medium">18%</div>
+                                </div>
+                                
+                                <div class="vote-option flex items-center p-3 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition duration-300">
+                                    <div class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center mr-3">
+                                        <div class="w-3 h-3 rounded-full bg-white"></div>
+                                    </div>
+                                    <div class="flex-grow">
+                                        <span class="text-primary">锻炼身体与放松心情</span>
+                                    </div>
+                                    <div class="text-primary font-medium">12%</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-8">
+                            <a href="https://www.xiaohongshu.com/search_result?keyword=CityWalk投票" target="_blank" class="block text-center bg-primary hover:bg-secondary text-white font-medium py-3 px-6 rounded-lg transition duration-300">
+                                去小红书参与投票
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Music Section -->
+        <section id="music" class="py-20 bg-gradient-to-b from-white to-yellow-50">
+            <div class="container mx-auto px-4">
+                <div class="section-title-container text-center mb-16" style="opacity: 0; transform: translateY(20px);">
+                    <h2 class="section-title text-3xl md:text-4xl font-bold font-display text-primary">音乐漫步</h2>
+                    <p class="text-primary mt-4 max-w-2xl mx-auto">精选 City Walk 时的背景音乐，让旋律伴随你的脚步</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- Playlist 1 -->
+                    <div class="music-card bg-white relative group" style="opacity: 0; transform: translateY(30px); transition-delay: 0.1s;">
+                        <div class="h-48 overflow-hidden">
+                            <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/code_assistant/2b2647512d78499d86e002c46db34cf3~tplv-a9rns2rl98-image.image?rcl=20251222224619E617AE580B74B5D31456&amp;rk3s=8e244e95&amp;rrcfp=e75484ac&amp;x-expires=1767019580&amp;x-signature=3KwMSdfbbSgPQYIikG%2BNCcnf1po%3D" alt="City Walk Morning Playlist" class="w-full h-full object-cover transition duration-700">
+                        </div>
+                        <div class="p-6 music-content">
+                            <h3 class="text-xl font-bold mb-2 font-display text-primary">清晨漫步</h3>
+                            <p class="text-primary mb-4">温柔的旋律，陪伴你在晨光中探索城市的第一缕生机。</p>
+                            <a href="https://music.163.com/#/playlist?id=123456789" target="_blank" class="inline-flex items-center text-primary hover:text-secondary transition duration-300 group-hover:translate-x-1">
+                                <i data-lucide="music" class="w-4 h-4 mr-1 transition-transform group-hover:scale-125"></i>
+                                <span>在网易云收听</span>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Playlist 2 -->
+                    <div class="music-card bg-white relative group" style="opacity: 0; transform: translateY(30px); transition-delay: 0.2s;">
+                        <div class="h-48 overflow-hidden">
+                            <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/code_assistant/95b24ab948684f1b8da3ed5047dcdfed~tplv-a9rns2rl98-image.image?rcl=202512222246303249014C4C8951D16C4C&amp;rk3s=8e244e95&amp;rrcfp=e75484ac&amp;x-expires=1767019591&amp;x-signature=Hj6CK7aCR%2BCOFdpPr4sTWf37Xu8%3D" alt="City Walk Afternoon Playlist" class="w-full h-full object-cover transition duration-700">
+                        </div>
+                        <div class="p-6 music-content">
+                            <h3 class="text-xl font-bold mb-2 font-display text-primary">午后闲游</h3>
+                            <p class="text-primary mb-4">轻松愉快的节奏，适合在阳光明媚的午后漫步城市街头。</p>
+                            <a href="https://music.163.com/#/playlist?id=987654321" target="_blank" class="inline-flex items-center text-primary hover:text-secondary transition duration-300 group-hover:translate-x-1">
+                                <i data-lucide="music" class="w-4 h-4 mr-1 transition-transform group-hover:scale-125"></i>
+                                <span>在网易云收听</span>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Playlist 3 -->
+                    <div class="music-card bg-white relative group" style="opacity: 0; transform: translateY(30px); transition-delay: 0.3s;">
+                        <div class="h-48 overflow-hidden">
+                            <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/code_assistant/61c0638e23054e5eb1ac239859bcddf4~tplv-a9rns2rl98-image.image?rcl=202512222246476D3BB0605E79B7B7D398&amp;rk3s=8e244e95&amp;rrcfp=e75484ac&amp;x-expires=1767019608&amp;x-signature=k%2FtFt0J%2B1tOd7ugXiz0PkpJWZD4%3D" alt="City Walk Night Playlist" class="w-full h-full object-cover transition duration-700">
+                        </div>
+                        <div class="p-6 music-content">
+                            <h3 class="text-xl font-bold mb-2 font-display text-primary">夜色漫步</h3>
+                            <p class="text-primary mb-4">舒缓的夜曲，带你感受城市夜晚的浪漫与神秘。</p>
+                            <a href="https://music.163.com/#/playlist?id=456789123" target="_blank" class="inline-flex items-center text-primary hover:text-secondary transition duration-300 group-hover:translate-x-1">
+                                <i data-lucide="music" class="w-4 h-4 mr-1 transition-transform group-hover:scale-125"></i>
+                                <span>在网易云收听</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Music Blog -->
+                <div class="mt-16 bg-gradient-to-br from-yellow-50 via-orange-50 to-yellow-50 rounded-2xl shadow-2xl p-8 border border-yellow-100 overflow-hidden relative" style="opacity: 0; transform: translateY(30px);">
+                    <!-- Decorative elements -->
+                    <div class="absolute top-0 right-0 w-40 h-40 bg-yellow-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+                    <div class="absolute bottom-0 left-0 w-40 h-40 bg-yellow-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+                    <div class="absolute top-1/2 left-1/2 w-40 h-40 bg-yellow-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+                    
+                    <div class="relative z-10">
+                        <h3 class="text-3xl font-bold mb-8 font-display text-primary">🎵 音乐博客</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                            <!-- Blog Post 1 -->
+                            <div class="bg-white bg-opacity-80 backdrop-blur-sm rounded-xl p-6 shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
+                                <div class="flex items-center mb-4">
+                                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-400 flex items-center justify-center text-white mr-4">
+                                        <i data-lucide="music"></i>
+                                    </div>
+                                    <h4 class="text-xl font-semibold font-display text-primary">如何选择 City Walk 的背景音乐？</h4>
+                                </div>
+                                <p class="text-primary mb-4 leading-relaxed">
+                                    选择适合 City Walk 的音乐需要考虑路线特点、个人喜好和环境氛围。清晨的漫步可以选择轻柔的古典音乐或民谣，午后的城市探索可以搭配轻快的流行乐或爵士，而夜晚的漫步则适合舒缓的电子音乐或钢琴独奏。
+                                </p>
+                                <p class="text-primary mb-6 leading-relaxed">
+                                    最重要的是，音乐的节奏应该与你的步行节奏相匹配，既不会太快让你感到匆忙，也不会太慢让你失去探索的动力。
+                                </p>
+                                <a href="https://music.163.com/#/blog?id=123456789" target="_blank" class="inline-flex items-center group text-primary hover:text-secondary transition duration-300 font-medium">
+                                    <span>阅读更多</span>
+                                    <i data-lucide="arrow-right" class="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform"></i>
+                                </a>
+                            </div>
+                            
+                            <!-- Blog Post 2 -->
+                            <div class="bg-white bg-opacity-80 backdrop-blur-sm rounded-xl p-6 shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
+                                <div class="flex items-center mb-4">
+                                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-yellow-400 flex items-center justify-center text-white mr-4">
+                                        <i data-lucide="headphones"></i>
+                                    </div>
+                                    <h4 class="text-xl font-semibold font-display text-primary">城市声音：聆听城市的自然旋律</h4>
+                                </div>
+                                <p class="text-primary mb-4 leading-relaxed">
+                                    除了播放列表，不妨尝试在 City Walk 时关闭音乐，用心聆听城市的自然声音：树叶的沙沙声、鸟儿的歌唱、咖啡馆里的交谈声、街头艺人的表演……这些声音共同构成了城市的独特旋律。
+                                </p>
+                                <p class="text-primary mb-6 leading-relaxed">
+                                    这种"城市声音漫步"可以让你以全新的方式感受城市的脉动和生命力。
+                                </p>
+                                <a href="https://music.163.com/#/blog?id=987654321" target="_blank" class="inline-flex items-center group text-primary hover:text-secondary transition duration-300 font-medium">
+                                    <span>阅读更多</span>
+                                    <i data-lucide="arrow-right" class="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Photo Gallery Section -->
+        <section id="gallery" class="py-20 bg-white">
+            <div class="container mx-auto px-4">
+                <div class="section-title-container text-center mb-16" style="opacity: 0; transform: translateY(20px);">
+                    <h2 class="section-title text-3xl md:text-4xl font-bold font-display text-primary">照片分享</h2>
+                    <p class="text-primary mt-4 max-w-2xl mx-auto">浏览用户分享的 City Walk 精彩瞬间</p>
+                </div>
+                
+                <!-- Horizontal Photo Slider -->
+                <div class="relative mb-16">
+                    <div class="photo-slider flex overflow-x-auto pb-8" style="opacity: 0; transform: translateY(20px);">
+                        <!-- Photo 1 -->
+                        <div class="photo-card relative group">
+                            <div class="h-64 overflow-hidden">
+                                <img src="https://p3-doubao-search-sign.byteimg.com/labis/f6828bf8c647262ff0ace8554e9cf6e6~tplv-be4g95zd3a-image.jpeg?rk3s=542c0f93&amp;x-expires=1781960524&amp;x-signature=8TVrgqgtdhW2wy7fCmONBA6M8vk%3D" alt="City Walk Photo" class="w-full h-full object-cover transition duration-700">
+                            </div>
+                            <div class="p-4 bg-white">
+                                <p class="text-primary font-medium">巴黎街头的午后时光</p>
+                                <div class="flex items-center mt-2 text-sm text-primary">
+                                    <i data-lucide="user" class="w-4 h-4 mr-1"></i>
+                                    <span>@旅行画家</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Photo 2 -->
+                        <div class="photo-card relative group">
+                            <div class="h-64 overflow-hidden">
+                                <img src="https://p11-doubao-search-sign.byteimg.com/labis/6720854de90496068e8dfeaa8ff408f9~tplv-be4g95zd3a-image.jpeg?rk3s=542c0f93&amp;x-expires=1781960524&amp;x-signature=ybk72tr6dv1pVQFT53PFluJTeOs%3D" alt="City Walk Photo" class="w-full h-full object-cover transition duration-700">
+                            </div>
+                            <div class="p-4 bg-white">
+                                <p class="text-primary font-medium">城市漫步的快乐时光</p>
+                                <div class="flex items-center mt-2 text-sm text-primary">
+                                    <i data-lucide="user" class="w-4 h-4 mr-1"></i>
+                                    <span>@城市探索者</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Photo 3 -->
+                        <div class="photo-card relative group">
+                            <div class="h-64 overflow-hidden">
+                                <img src="https://p11-doubao-search-sign.byteimg.com/labis/image/a495b246fdae343f6948e2e301e1888d~tplv-be4g95zd3a-image.jpeg?rk3s=542c0f93&amp;x-expires=1781960524&amp;x-signature=i0V7lrxZNlX1jfG2K3bmQL91UP4%3D" alt="City Walk Photo" class="w-full h-full object-cover transition duration-700">
+                            </div>
+                            <div class="p-4 bg-white">
+                                <p class="text-primary font-medium">说走就走的城市探险</p>
+                                <div class="flex items-center mt-2 text-sm text-primary">
+                                    <i data-lucide="user" class="w-4 h-4 mr-1"></i>
+                                    <span>@冒险家</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Photo 4 -->
+                        <div class="photo-card relative group">
+                            <div class="h-64 overflow-hidden">
+                                <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/code_assistant/71a874a2abdd4255937dbd6257555f98~tplv-a9rns2rl98-image.image?rcl=2025122222473899709E79602C63B8E9C6&amp;rk3s=8e244e95&amp;rrcfp=e75484ac&amp;x-expires=1767019659&amp;x-signature=97jb6pP1oDaSE3FQm%2BXgPW0y9QM%3D" alt="City Walk Photo" class="w-full h-full object-cover transition duration-700">
+                            </div>
+                            <div class="p-4 bg-white">
+                                <p class="text-primary font-medium">秋日的城市漫步</p>
+                                <div class="flex items-center mt-2 text-sm text-primary">
+                                    <i data-lucide="user" class="w-4 h-4 mr-1"></i>
+                                    <span>@秋意浓</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Photo 5 -->
+                        <div class="photo-card relative group">
+                            <div class="h-64 overflow-hidden">
+                                <img src="https://p3-doubao-search-sign.byteimg.com/ecom-shop-material/jpeg_m_96c5516bfd75fd6921b8a20094855e09_sx_102064_www800-800~tplv-be4g95zd3a-image.jpeg?rk3s=542c0f93&amp;x-expires=1781960524&amp;x-signature=ynH4lsOOCIEb5SBxj6g8njtHQp0%3D" alt="City Walk Photo" class="w-full h-full object-cover transition duration-700">
+                            </div>
+                            <div class="p-4 bg-white">
+                                <p class="text-primary font-medium">雨中的城市浪漫</p>
+                                <div class="flex items-center mt-2 text-sm text-primary">
+                                    <i data-lucide="user" class="w-4 h-4 mr-1"></i>
+                                    <span>@雨巷</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Slider Controls -->
+                    <button id="prev-slide" class="absolute top-1/2 left-0 transform -translate-y-1/2 bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md focus:outline-none z-10 text-primary hover:bg-primary hover:text-white transition duration-300">
+                        <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                    </button>
+                    
+                    <button id="next-slide" class="absolute top-1/2 right-0 transform -translate-y-1/2 bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-md focus:outline-none z-10 text-primary hover:bg-primary hover:text-white transition duration-300">
+                        <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                
+                <!-- Share Your Photo -->
+                <div class="bg-white rounded-xl shadow-lg p-8 border border-gray-100 text-center" style="opacity: 0; transform: translateY(30px);">
+                    <h3 class="text-2xl font-bold mb-4 font-display text-primary">分享你的 City Walk 照片</h3>
+                    <p class="text-primary mb-6 max-w-2xl mx-auto">
+                        记录你的城市漫步瞬间，与更多人分享你的发现和故事
+                    </p>
+                    <a href="https://www.xiaohongshu.com/search_result?keyword=CityWalk照片分享" target="_blank" class="inline-flex items-center bg-primary hover:bg-secondary text-white font-medium py-3 px-8 rounded-full transition duration-300 transform hover:scale-105 hover:shadow-lg">
+                        <i data-lucide="upload" class="w-5 h-5 mr-2"></i>
+                        <span>去小红书分享</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Section -->
+        <section id="contact" class="py-20 bg-gradient-to-b from-white to-yellow-50">
+            <div class="container mx-auto px-4">
+                <div class="section-title-container text-center mb-16" style="opacity: 0; transform: translateY(20px);">
+                    <h2 class="section-title text-3xl md:text-4xl font-bold font-display text-primary">联系我们</h2>
+                    <p class="text-primary mt-4 max-w-2xl mx-auto">有任何问题或建议，欢迎随时联系我们</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                    <div class="bg-white rounded-xl shadow-lg p-8 border border-gray-100" style="opacity: 0; transform: translateX(-30px);">
+                        <h3 class="text-2xl font-bold mb-6 text-primary">发送消息</h3>
+                        
+                        <form id="contact-form" class="space-y-6">
+                            <div>
+                                <label for="name" class="block text-sm font-medium text-primary mb-2">姓名</label>
+                                <input type="text" id="name" name="name" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition duration-300" placeholder="请输入您的姓名">
+                            </div>
+                            
+                            <div>
+                                <label for="email" class="block text-sm font-medium text-primary mb-2">邮箱</label>
+                                <input type="email" id="email" name="email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition duration-300" placeholder="请输入您的邮箱">
+                            </div>
+                            
+                            <div>
+                                <label for="subject" class="block text-sm font-medium text-primary mb-2">主题</label>
+                                <input type="text" id="subject" name="subject" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition duration-300" placeholder="请输入消息主题">
+                            </div>
+                            
+                            <div>
+                                <label for="message" class="block text-sm font-medium text-primary mb-2">消息</label>
+                                <textarea id="message" name="message" rows="5" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition duration-300" placeholder="请输入您的消息"></textarea>
+                            </div>
+                            
+                            <button type="submit" class="w-full bg-primary hover:bg-secondary text-dark font-bold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105 hover:shadow-lg">
+                                发送消息
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-lg p-8 border border-gray-100" style="opacity: 0; transform: translateX(30px);">
+                        <h3 class="text-2xl font-bold mb-6 text-primary">联系方式</h3>
+                        
+                        <div class="space-y-6">
+                            <div class="flex items-start">
+                                <div class="bg-primary bg-opacity-10 p-3 rounded-full mr-4">
+                                    <i data-lucide="mail" class="w-6 h-6 text-primary"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-primary">邮箱</h4>
+                                    <p class="text-primary">contact@citywalk.com</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-primary bg-opacity-10 p-3 rounded-full mr-4">
+                                    <i data-lucide="phone" class="w-6 h-6 text-primary"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-primary">电话</h4>
+                                    <p class="text-primary">+86 123 4567 8910</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-primary bg-opacity-10 p-3 rounded-full mr-4">
+                                    <i data-lucide="map-pin" class="w-6 h-6 text-primary"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-primary">地址</h4>
+                                    <p class="text-primary">西北民族大学新闻学1班</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-primary bg-opacity-10 p-3 rounded-full mr-4">
+                                    <i data-lucide="clock" class="w-6 h-6 text-primary"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-primary">工作时间</h4>
+                                    <p class="text-primary">周一至周五: 9:00 - 18:00</p>
+                                    <p class="text-primary">周六至周日: 10:00 - 16:00</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-8">
+                            <h4 class="font-semibold text-primary mb-4">关注我们</h4>
+                            <div class="flex space-x-4">
+                                <a href="#" class="bg-primary bg-opacity-10 p-3 rounded-full hover:bg-primary hover:text-white transition duration-300">
+                                    <i data-lucide="weibo" class="w-5 h-5 text-primary"></i>
+                                </a>
+                                <a href="#" class="bg-primary bg-opacity-10 p-3 rounded-full hover:bg-primary hover:text-white transition duration-300">
+                                    <i data-lucide="instagram" class="w-5 h-5 text-primary"></i>
+                                </a>
+                                <a href="#" class="bg-primary bg-opacity-10 p-3 rounded-full hover:bg-primary hover:text-white transition duration-300">
+                                    <i data-lucide="twitter" class="w-5 h-5 text-primary"></i>
+                                </a>
+                                <a href="#" class="bg-primary bg-opacity-10 p-3 rounded-full hover:bg-primary hover:text-white transition duration-300">
+                                    <i data-lucide="youtube" class="w-5 h-5 text-primary"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="bg-primary text-dark py-12">
+            <div class="container mx-auto px-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                    <div>
+                        <div class="flex items-center space-x-2 mb-4">
+                            <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/acc519db6f584e14be10101282d26574~tplv-a9rns2rl98-image.image?rcl=20251222210137F1CA449D75FE6EA11840&amp;rk3s=8e244e95&amp;rrcfp=f06b921b&amp;x-expires=1769000554&amp;x-signature=XrfNkbOHv6z5D7Gq26auPWmFGKs%3D" alt="City Walk Logo" class="h-8">
+                            <span class="text-xl font-bold text-dark">City Walk</span>
+                        </div>
+                        <p class="text-dark mb-4">
+                            探索城市的每一个角落，发现隐藏的美好
+                        </p>
+                        <div class="flex space-x-4">
+                            <a href="#" class="text-dark hover:text-white transition duration-300">
+                                <i data-lucide="weibo" class="w-5 h-5"></i>
+                            </a>
+                            <a href="#" class="text-dark hover:text-white transition duration-300">
+                                <i data-lucide="instagram" class="w-5 h-5"></i>
+                            </a>
+                            <a href="#" class="text-dark hover:text-white transition duration-300">
+                                <i data-lucide="twitter" class="w-5 h-5"></i>
+                            </a>
+                            <a href="#" class="text-dark hover:text-white transition duration-300">
+                                <i data-lucide="youtube" class="w-5 h-5"></i>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-lg font-semibold mb-4 text-dark">快速链接</h4>
+                        <ul class="space-y-2">
+                            <li><a href="#about" class="text-dark hover:text-white transition duration-300">关于 City Walk</a></li>
+                            <li><a href="#topics" class="text-dark hover:text-white transition duration-300">话题搭建</a></li>
+                            <li><a href="#interaction" class="text-dark hover:text-white transition duration-300">互动专区</a></li>
+                            <li><a href="#music" class="text-dark hover:text-white transition duration-300">音乐漫步</a></li>
+                            <li><a href="#gallery" class="text-dark hover:text-white transition duration-300">照片分享</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-lg font-semibold mb-4 text-dark">合作伙伴</h4>
+                        <ul class="space-y-2">
+                            <li><a href="https://weibo.com" target="_blank" class="text-dark hover:text-white transition duration-300">微博</a></li>
+                            <li><a href="https://www.xiaohongshu.com" target="_blank" class="text-dark hover:text-white transition duration-300">小红书</a></li>
+                            <li><a href="https://music.163.com" target="_blank" class="text-dark hover:text-white transition duration-300">网易云音乐</a></li>
+                            <li><a href="https://www.behance.net" target="_blank" class="text-dark hover:text-white transition duration-300">Behance</a></li>
+                            <li><a href="https://www.zcool.com.cn" target="_blank" class="text-dark hover:text-white transition duration-300">站酷</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-lg font-semibold mb-4 text-dark">联系我们</h4>
+                        <ul class="space-y-2">
+                            <li class="flex items-center">
+                                <i data-lucide="mail" class="w-4 h-4 mr-2 text-dark"></i>
+                                <span class="text-dark">contact@citywalk.com</span>
+                            </li>
+                            <li class="flex items-center">
+                                <i data-lucide="phone" class="w-4 h-4 mr-2 text-dark"></i>
+                                <span class="text-dark">+86 123 4567 8910</span>
+                            </li>
+                            <li class="flex items-center">
+                                <i data-lucide="map-pin" class="w-4 h-4 mr-2 text-dark"></i>
+                                <span class="text-dark">西北民族大学新闻学1班</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="border-t border-dark border-opacity-20 mt-8 pt-8 text-center text-dark">
+                    <p>© 2025 City Walk. All rights reserved.</p>
+                </div>
+            </div>
+        </footer>
+
+        <!-- Back to Top Button -->
+        <button id="back-to-top" class="fixed bottom-8 right-8 bg-primary hover:bg-secondary text-dark rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition duration-300 opacity-0 invisible">
+            <i data-lucide="arrow-up" class="w-6 h-6"></i>
+        </button>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+        
+        // Splash Screen Particles
+        function initSplashParticles() {
+            // Get canvas element
+            const canvas = document.getElementById('splash-particles-canvas');
+            
+            // Create scene
+            const scene = new THREE.Scene();
+            
+            // Create camera
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+            
+            // Create renderer
+            const renderer = new THREE.WebGLRenderer({
+                canvas: canvas,
+                alpha: true,
+                antialias: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            
+            // Particle count
+            const particleCount = 8000;
+            
+            // Create particles geometry
+            const particlesGeometry = new THREE.BufferGeometry();
+            
+            // Create arrays to store positions, colors, and sizes
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
+            
+            // Create velocity array for animation
+            const velocities = new Float32Array(particleCount * 3);
+            
+            // Generate particles
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                
+                // Initial position (clustered at center)
+                positions[i3] = (Math.random() - 0.5) * 0.3;
+                positions[i3 + 1] = (Math.random() - 0.5) * 0.3;
+                positions[i3 + 2] = (Math.random() - 0.5) * 0.3;
+                
+                // Random velocity for explosion effect with more power
+                const speed = 0.02 + Math.random() * 0.04;
+                velocities[i3] = (Math.random() - 0.5) * speed;
+                velocities[i3 + 1] = (Math.random() - 0.5) * speed;
+                velocities[i3 + 2] = (Math.random() - 0.5) * speed;
+                
+                // Color (lemon yellow, orange, gold theme with more variation)
+                const colorType = Math.random();
+                if (colorType < 0.33) {
+                    // Lemon yellow
+                    colors[i3] = 0.9 + Math.random() * 0.1; // R
+                    colors[i3 + 1] = 0.8 + Math.random() * 0.1; // G
+                    colors[i3 + 2] = 0.2 + Math.random() * 0.1; // B
+                } else if (colorType < 0.66) {
+                    // Orange
+                    colors[i3] = 1.0; // R
+                    colors[i3 + 1] = 0.7 + Math.random() * 0.2; // G
+                    colors[i3 + 2] = 0.2 + Math.random() * 0.1; // B
+                } else {
+                    // Gold
+                    colors[i3] = 1.0; // R
+                    colors[i3 + 1] = 0.84 + Math.random() * 0.1; // G
+                    colors[i3 + 2] = 0.0 + Math.random() * 0.1; // B
+                }
+                
+                // Size with more variation
+                sizes[i] = 0.01 + Math.random() * 0.05;
+            }
+            
+            // Set attributes
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            particlesGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+            
+            // Create material
+            const particlesMaterial = new THREE.PointsMaterial({
+                size: 0.02,
+                vertexColors: true,
+                transparent: true,
+                opacity: 1.0,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                // Add glow effect
+                shininess: 100,
+                // Add size attenuation for perspective effect
+                sizeAttenuation: true
+            });
+            
+            // Create particles system
+            const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+            scene.add(particles);
+            
+            // Animation variables
+            const startTime = Date.now();
+            const explosionDuration = 1500; // 1.5 seconds for more rapid explosion
+            const fadeOutDuration = 1500; // 1.5 seconds for fade out
+            const totalDuration = 5000; // 5 seconds total for longer effect
+            
+            // Animate splash screen content with more impact
+            gsap.fromTo('.splash-logo', {
+                scale: 0.8,
+                opacity: 0
+            }, {
+                scale: 1,
+                opacity: 1,
+                duration: 1,
+                delay: 0.3,
+                ease: "back.out(1.7)"
+            });
+            
+            gsap.fromTo('.splash-title', {
+                scale: 0.9,
+                opacity: 0,
+                y: 20
+            }, {
+                scale: 1,
+                opacity: 1,
+                y: 0,
+                duration: 1,
+                delay: 0.7,
+                ease: "power2.out"
+            });
+            
+            gsap.fromTo('.splash-subtitle', {
+                opacity: 0,
+                y: 20
+            }, {
+                opacity: 1,
+                y: 0,
+                duration: 1,
+                delay: 1.0,
+                ease: "power2.out"
+            });
+            
+            // Add pulse effect to logo during animation
+            gsap.to('.splash-logo', {
+                scale: 1.05,
+                duration: 1.5,
+                delay: 1.5,
+                ease: "elastic.out(1, 0.3)",
+                yoyo: true,
+                repeat: -1
+            });
+            
+            // Animation function
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Get elapsed time
+                const elapsed = Date.now() - startTime;
+                
+                // Update particle positions
+                const positions = particlesGeometry.attributes.position.array;
+                const sizes = particlesGeometry.attributes.size.array;
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const i3 = i * 3;
+                    
+                    // During explosion phase
+                    if (elapsed < explosionDuration) {
+                        // Move particles outward with acceleration
+                        const acceleration = 1 + (elapsed / explosionDuration) * 2;
+                        positions[i3] += velocities[i3] * acceleration;
+                        positions[i3 + 1] += velocities[i3 + 1] * acceleration;
+                        positions[i3 + 2] += velocities[i3 + 2] * acceleration;
+                        
+                        // Slower deceleration for more dramatic effect
+                        velocities[i3] *= 0.98;
+                        velocities[i3 + 1] *= 0.98;
+                        velocities[i3 + 2] *= 0.98;
+                        
+                        // Particle size pulsing effect during explosion
+                        sizes[i] = (0.01 + Math.random() * 0.05) * (1 + Math.sin(elapsed * 0.01) * 0.5);
+                    } 
+                    // After explosion, energetic floating movement
+                    else {
+                        // More energetic floating movement
+                        positions[i3] += Math.sin(i + elapsed * 0.002) * 0.002;
+                        positions[i3 + 1] += Math.cos(i + elapsed * 0.002) * 0.002;
+                        positions[i3 + 2] += Math.sin(i * 2 + elapsed * 0.001) * 0.002;
+                        
+                        // Gentle size variation
+                        sizes[i] = (0.01 + Math.random() * 0.03) * (1 + Math.sin(elapsed * 0.005 + i) * 0.3);
+                    }
+                }
+                
+                // Update geometry
+                particlesGeometry.attributes.position.needsUpdate = true;
+                particlesGeometry.attributes.size.needsUpdate = true;
+                
+                // Faster rotation for more dynamic effect
+                particles.rotation.y += 0.003;
+                particles.rotation.x += 0.001;
+                
+                // Fade out particles after totalDuration
+                if (elapsed > totalDuration - fadeOutDuration) {
+                    const opacity = 1 - (elapsed - (totalDuration - fadeOutDuration)) / fadeOutDuration;
+                    particlesMaterial.opacity = opacity;
+                    
+                    // Also fade out splash content with scale down effect
+                    gsap.to('.splash-content', {
+                        opacity: opacity,
+                        scale: 0.95 + (1 - opacity) * 0.05,
+                        duration: 0.1
+                    });
+                }
+                
+                // Hide splash screen and show main content after totalDuration
+                if (elapsed >= totalDuration) {
+                    // Add dramatic final effect before hiding
+                    gsap.to('#splash-screen', {
+                        opacity: 0,
+                        scale: 1.05,
+                        duration: 0.5,
+                        onComplete: () => {
+                            document.getElementById('splash-screen').style.display = 'none';
+                            document.querySelector('.main-content').classList.add('visible');
+                        }
+                    });
+                    return;
+                }
+                
+                // Render scene
+                renderer.render(scene, camera);
+            }
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            // Start animation
+            animate();
+        }
+        
+        // Initialize splash particles when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            initSplashParticles();
+        });
+        
+        // Preloader
+        window.addEventListener('load', () => {
+            const preloader = document.querySelector('.preloader');
+            preloader.classList.add('hidden');
+            
+            // Initialize animations after preloader
+            initAnimations();
+        });
+        
+        // Mobile menu toggle
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const closeMenuButton = document.getElementById('close-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        
+        mobileMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.add('active');
+        });
+        
+        closeMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.remove('active');
+        });
+        
+        // Close mobile menu when clicking on a link
+        const mobileMenuLinks = mobileMenu.querySelectorAll('a');
+        mobileMenuLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                mobileMenu.classList.remove('active');
+            });
+        });
+        
+        // Initialize animations
+        function initAnimations() {
+            // Hero content animation
+            gsap.to('.hero-content', {
+                opacity: 1,
+                y: 0,
+                duration: 1,
+                delay: 0.5
+            });
+            
+            // Section animations
+            const sections = document.querySelectorAll('section');
+            sections.forEach(section => {
+                const elements = section.querySelectorAll('[style*="opacity: 0"]');
+                elements.forEach((el, index) => {
+                    gsap.to(el, {
+                        opacity: 1,
+                        y: 0,
+                        x: 0,
+                        duration: 0.8,
+                        scrollTrigger: {
+                            trigger: section,
+                            start: 'top 80%',
+                            toggleActions: 'play none none none'
+                        },
+                        delay: index * 0.1
+                    });
+                });
+            });
+            
+            // Create footprint animations on scroll
+            window.addEventListener('scroll', () => {
+                if (Math.random() > 0.95) {
+                    createFootprint();
+                }
+            });
+        }
+        
+        // Create footprint animation
+        function createFootprint() {
+            const footprint = document.createElement('div');
+            footprint.classList.add('footprint-animation');
+            
+            // Random position
+            const posX = Math.random() * window.innerWidth;
+            footprint.style.left = `${posX}px`;
+            footprint.style.bottom = '0';
+            
+            document.body.appendChild(footprint);
+            
+            // Remove after animation
+            setTimeout(() => {
+                footprint.remove();
+            }, 2000);
+        }
+        
+        // Photo slider controls
+        const slider = document.querySelector('.photo-slider');
+        const prevButton = document.getElementById('prev-slide');
+        const nextButton = document.getElementById('next-slide');
+        
+        prevButton.addEventListener('click', () => {
+            slider.scrollBy({ left: -320, behavior: 'smooth' });
+        });
+        
+        nextButton.addEventListener('click', () => {
+            slider.scrollBy({ left: 320, behavior: 'smooth' });
+        });
+        
+        // Back to top button
+        const backToTopButton = document.getElementById('back-to-top');
+        
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 300) {
+                backToTopButton.classList.remove('opacity-0', 'invisible');
+                backToTopButton.classList.add('opacity-100', 'visible');
+            } else {
+                backToTopButton.classList.remove('opacity-100', 'visible');
+                backToTopButton.classList.add('opacity-0', 'invisible');
+            }
+        });
+        
+        backToTopButton.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        
+        // More topics button
+        const moreTopicsButton = document.getElementById('more-topics-btn');
+        moreTopicsButton.addEventListener('click', () => {
+            alert('更多精彩话题即将推出，敬请期待！');
+        });
+        
+        // FAQ accordion
+        const faqQuestions = document.querySelectorAll('.faq-question');
+        faqQuestions.forEach(question => {
+            question.addEventListener('click', () => {
+                const answer = question.nextElementSibling;
+                const icon = question.querySelector('i');
+                
+                // Toggle visibility
+                answer.classList.toggle('hidden');
+                
+                // Rotate icon
+                if (answer.classList.contains('hidden')) {
+                    icon.style.transform = 'rotate(0deg)';
+                } else {
+                    icon.style.transform = 'rotate(180deg)';
+                }
+            });
+        });
+        
+        // Contact form submission
+        const contactForm = document.getElementById('contact-form');
+        if (contactForm) {
+            contactForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                // Get form values
+                const name = document.getElementById('name').value;
+                const email = document.getElementById('email').value;
+                const subject = document.getElementById('subject').value;
+                const message = document.getElementById('message').value;
+                
+                // Validate form
+                if (!name || !email || !subject || !message) {
+                    alert('请填写所有必填字段');
+                    return;
+                }
+                
+                // Simulate form submission
+                alert(`感谢您的留言，${name}！我们会尽快回复您。`);
+                contactForm.reset();
+            });
+        }
+        
+        // Three.js Particle Animation for main content
+        function initThreeJsParticles() {
+            // Get canvas element
+            const canvas = document.getElementById('particles-canvas');
+            
+            // Create scene
+            const scene = new THREE.Scene();
+            
+            // Create camera
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+            
+            // Create renderer
+            const renderer = new THREE.WebGLRenderer({
+                canvas: canvas,
+                alpha: true,
+                antialias: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            
+            // Particle count
+            const particleCount = 1000;
+            
+            // Create particles geometry
+            const particlesGeometry = new THREE.BufferGeometry();
+            
+            // Create arrays to store positions, colors, and sizes
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
+            
+            // Generate particles
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                
+                // Random position
+                positions[i3] = (Math.random() - 0.5) * 10;
+                positions[i3 + 1] = (Math.random() - 0.5) * 10;
+                positions[i3 + 2] = (Math.random() - 0.5) * 10;
+                
+                // Color (lemon yellow theme)
+                colors[i3] = 0.9 + Math.random() * 0.1; // R
+                colors[i3 + 1] = 0.8 + Math.random() * 0.1; // G
+                colors[i3 + 2] = 0.2 + Math.random() * 0.1; // B
+                
+                // Size
+                sizes[i] = 0.01 + Math.random() * 0.02;
+            }
+            
+            // Set attributes
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            particlesGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+            
+            // Create material
+            const particlesMaterial = new THREE.PointsMaterial({
+                size: 0.02,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.5,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            
+            // Create particles system
+            const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+            scene.add(particles);
+            
+            // Mouse interaction
+            let mouseX = 0;
+            let mouseY = 0;
+            let mouseXOnMouseMove = 0;
+            let mouseYOnMouseMove = 0;
+            
+            // Handle mouse movement
+            document.addEventListener('mousemove', (event) => {
+                mouseXOnMouseMove = (event.clientX - window.innerWidth / 2) / window.innerWidth;
+                mouseYOnMouseMove = (event.clientY - window.innerHeight / 2) / window.innerHeight;
+            });
+            
+            // Animation function
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Gradually update mouse position
+                mouseX += (mouseXOnMouseMove - mouseX) * 0.05;
+                mouseY += (mouseYOnMouseMove - mouseY) * 0.05;
+                
+                // Update particle positions
+                const positions = particlesGeometry.attributes.position.array;
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const i3 = i * 3;
+                    
+                    // Apply mouse influence to particles
+                    const distance = Math.sqrt(
+                        Math.pow(positions[i3] - mouseX * 5, 2) + 
+                        Math.pow(positions[i3 + 1] - mouseY * 5, 2)
+                    );
+                    
+                    // Repulsion effect
+                    if (distance < 1) {
+                        const repulsionForce = (1 - distance) * 0.01;
+                        positions[i3] -= (positions[i3] - mouseX * 5) * repulsionForce;
+                        positions[i3 + 1] -= (positions[i3 + 1] - mouseY * 5) * repulsionForce;
+                    }
+                    
+                    // Gentle floating movement
+                    positions[i3] += Math.sin(i + Date.now() * 0.001) * 0.001;
+                    positions[i3 + 1] += Math.cos(i + Date.now() * 0.001) * 0.001;
+                    positions[i3 + 2] += Math.sin(i * 2 + Date.now() * 0.0005) * 0.001;
+                }
+                
+                // Update geometry
+                particlesGeometry.attributes.position.needsUpdate = true;
+                
+                // Rotate the entire particle system slightly
+                particles.rotation.y += 0.0005;
+                
+                // Render scene
+                renderer.render(scene, camera);
+            }
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            // Start animation
+            animate();
+        }
+        
+        // Initialize Three.js particles when main content is visible
+        document.querySelector('.main-content').addEventListener('transitionend', () => {
+            if (document.querySelector('.main-content').classList.contains('visible')) {
+                initThreeJsParticles();
+            }
+        });
+        
+        // Fluid background effect
+        document.addEventListener('mousemove', (e) => {
+            const fluidBg = document.querySelector('.fluid-background');
+            if (fluidBg) {
+                const x = e.clientX / window.innerWidth;
+                const y = e.clientY / window.innerHeight;
+                
+                fluidBg.style.transform = `translate(${x * 20}px, ${y * 20}px)`;
+            }
+        });
+    </script>
+
+</body>
+</html>
